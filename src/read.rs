@@ -649,7 +649,13 @@ pub(crate) fn central_header_to_zip_file<R: Read + io::Seek>(
 ) -> ZipResult<ZipFileData> {
     let central_header_start = reader.stream_position()?;
 
-    central_header_to_zip_file_inner(reader, archive_offset, central_header_start)
+    // Parse central header
+    let signature = reader.read_u32::<LittleEndian>()?;
+    if signature != spec::CENTRAL_DIRECTORY_HEADER_SIGNATURE {
+        Err(ZipError::InvalidArchive("Invalid Central Directory header"))
+    } else {
+        central_header_to_zip_file_inner(reader, archive_offset, central_header_start)
+    }
 }
 
 /// Parse a central directory entry to collect the information for the file.
@@ -658,12 +664,6 @@ fn central_header_to_zip_file_inner<R: Read>(
     central_header_start: u64,
     archive_offset: u64,
 ) -> ZipResult<ZipFileData> {
-    // Parse central header
-    let signature = reader.read_u32::<LittleEndian>()?;
-    if signature != spec::CENTRAL_DIRECTORY_HEADER_SIGNATURE {
-        return Err(ZipError::InvalidArchive("Invalid Central Directory header"));
-    }
-
     let version_made_by = reader.read_u16::<LittleEndian>()?;
     let _version_to_extract = reader.read_u16::<LittleEndian>()?;
     let flags = reader.read_u16::<LittleEndian>()?;
